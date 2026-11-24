@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadhouse Grimoire</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Подключаем максимально читаемый шрифт Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --app-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        html, body, button, input, textarea, select, option {
+            font-family: var(--app-font);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body { 
+            background-color: #0b0908; 
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        .font-grimoire { 
+            font-family: var(--app-font); 
+        }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .leather-bg {
+            background-color: #120f0d;
+            background-image: radial-gradient(circle at 50% 50%, #1a1512 0%, #0d0a08 100%);
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.9);
+        }
+        .parchment-card {
+            background-color: #16120f;
+            border: 1px solid #3d2f24;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        }
+        .parchment-modal {
+            background-color: #14100d;
+            border: 2px solid #4a3828;
+        }
+    </style>
+</head>
+<body class="text-amber-50 min-h-screen flex justify-center items-center p-0 sm:p-4">
+
+    <div id="app" class="w-full max-w-md leather-bg sm:rounded-2xl shadow-2xl overflow-hidden border-2 border-[#3d2f24] flex flex-col h-screen sm:h-[880px] relative">
+        
+        <!-- Шапка гримуара -->
+        <header class="bg-[#16120f]/95 backdrop-blur-md border-b-2 border-[#3d2f24] p-4 sticky top-0 z-20 flex items-center justify-between">
+            <div>
+                <h1 class="font-grimoire font-bold tracking-wide text-lg text-amber-400 flex items-center gap-2 drop-shadow-md">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-600 shadow-[0_0_8px_red] animate-pulse"></span>
+                    Monster Hunters' Cookbook
+                </h1>
+                <p id="headerSubtitle" class="text-xs text-amber-200/80 mt-0.5">Записи охотников на нечисть</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="toggleLanguage()" title="Сменить язык / Change language" class="h-9 px-3 rounded-lg bg-[#221b15] border border-[#4a3828] flex items-center justify-center text-xs font-bold text-amber-300 hover:bg-[#2e241c] transition cursor-pointer shadow">
+                    <span id="langLabel">RU</span>
+                </button>
+                <button onclick="openRandomRecipe()" id="randomBtnTitle" title="Случайный рецепт" class="w-9 h-9 rounded-lg bg-[#221b15] border border-[#4a3828] flex items-center justify-center text-base text-amber-300 hover:bg-[#2e241c] transition cursor-pointer shadow">
+                    🎲
+                </button>
+            </div>
+        </header>
+
+        <!-- Поиск и фильтры -->
+        <div class="p-4 bg-[#14100d]/95 backdrop-blur border-b border-[#3d2f24] space-y-3 z-10">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Поиск по архивам..." 
+                    class="w-full bg-[#1b1511] border border-[#4a3828] rounded-xl pl-11 pr-4 py-3 text-sm text-amber-50 placeholder-amber-200/50 focus:outline-none focus:border-amber-500 transition shadow-inner">
+                <svg class="w-4 h-4 text-amber-400/70 absolute left-4 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            
+            <!-- Категории -->
+            <div id="categoryFilter" class="flex flex-wrap gap-1.5 items-center border-t border-[#261d15] pt-2.5"></div>
+        </div>
+
+        <!-- Список записей -->
+        <main class="flex-1 overflow-y-auto p-4 space-y-4" id="recipeList"></main>
+    </div>
+
+    <!-- Модальное окно рецепта -->
+    <div id="recipeModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="parchment-modal w-full max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col overflow-hidden relative shadow-2xl">
+            
+            <div class="relative h-48 w-full bg-[#0d0a08] shrink-0 border-b border-[#3d2f24]">
+                <img id="modalImage" class="w-full h-full object-cover opacity-80" src="" alt="">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#14100d] via-[#14100d]/30 to-black/50"></div>
+                
+                <div class="absolute top-3 right-3 flex items-center gap-2">
+                    <button id="modalFavBtn" class="w-9 h-9 rounded-full bg-[#1b1511]/90 backdrop-blur border border-[#4a3828] flex items-center justify-center text-amber-300 hover:text-white transition cursor-pointer shadow">
+                        <svg id="modalFavIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    </button>
+                    <button onclick="closeModal()" class="w-9 h-9 rounded-full bg-[#1b1511]/90 backdrop-blur border border-[#4a3828] flex items-center justify-center text-amber-300 hover:text-white transition cursor-pointer shadow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div class="absolute bottom-3 left-4 right-4">
+                    <h2 id="modalTitle" class="font-grimoire text-xl font-bold text-amber-50 mt-1 drop-shadow-lg leading-snug"></h2>
+                </div>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-5 text-sm text-amber-50/95">
+                <p id="modalCanon" class="text-sm text-amber-100/90 bg-[#1b1511] p-3.5 rounded-xl border border-[#3d2f24] leading-relaxed shadow-inner"></p>
+
+                <div class="grid grid-cols-2 gap-2.5 text-sm">
+                    <div class="bg-[#1b1511] p-3 rounded-xl border border-[#3d2f24] text-center shadow">
+                        <span id="modalTimeTitle" class="text-amber-400/80 font-grimoire text-xs font-medium block mb-0.5">Время</span>
+                        <span id="modalTime" class="font-bold text-amber-100"></span>
+                    </div>
+                    <div class="bg-[#1b1511] p-3 rounded-xl border border-[#3d2f24] text-center shadow">
+                        <span id="modalDiffTitle" class="text-amber-400/80 font-grimoire text-xs font-medium block mb-0.5">Угроза</span>
+                        <span id="modalDifficulty" class="font-bold text-amber-100"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 id="modalIngHeader" class="font-grimoire font-bold text-amber-400 tracking-wide text-sm mb-2.5">Компоненты / Ингредиенты</h3>
+                    <ul id="modalIngredients" class="space-y-2 text-sm"></ul>
+                </div>
+
+                <div>
+                    <h3 id="modalStepsHeader" class="font-grimoire font-bold text-amber-400 tracking-wide text-sm mb-2.5">Инструкция по ритуалу</h3>
+                    <ol id="modalSteps" class="space-y-3 text-sm"></ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            ru: {
+                subtitle: "Записи охотников на нечисть",
+                searchPlaceholder: "Поиск по архивам...",
+                allCategories: "Все",
+                favorites: "Избранное",
+                time: "Время",
+                difficulty: "Сложность",
+                ingredients: "Компоненты / Ингредиенты",
+                steps: "Инструкция по ритуалу",
+                noResults: "Архивы пусты...",
+                errorLoad: "Ошибка загрузки архивов recipes.json.",
+                randomBtnTitle: "Случайный ритуал",
+                categories: {
+                    "Десерты": "Десерты",
+                    "Основные блюда": "Основные блюда",
+                    "Фастфуд": "Фастфуд",
+                    "Салаты": "Салаты",
+                    "Закуски": "Закуски",
+                    "Супы": "Супы",
+                    "Напитки": "Напитки"
+                },
+                difficulties: {
+                    "Легко": "Легко",
+                    "Легкое": "Легко",
+                    "Простое": "Легко",
+                    "Низкая": "Легко",
+                    "Среднее": "Среднее",
+                    "Сложно": "Сложно"
+                }
+            },
+            en: {
+                subtitle: "Hunter's Field Journal",
+                searchPlaceholder: "Search archives...",
+                allCategories: "All",
+                favorites: "Favorites",
+                time: "Time",
+                difficulty: "Threat",
+                ingredients: "Components / Ingredients",
+                steps: "Ritual Instructions",
+                noResults: "Archives empty...",
+                errorLoad: "Error loading recipes.json.",
+                randomBtnTitle: "Random Ritual",
+                categories: {
+                    "Десерты": "Desserts",
+                    "Основные блюда": "Main Dishes",
+                    "Фастфуд": "Fast Food",
+                    "Салаты": "Salads",
+                    "Закуски": "Snacks",
+                    "Супы": "Soups",
+                    "Напитки": "Drinks"
+                },
+                difficulties: {
+                    "Легко": "Easy",
+                    "Легкое": "Easy",
+                    "Простое": "Easy",
+                    "Низкая": "Easy",
+                    "Среднее": "Medium",
+                    "Сложно": "Hard"
+                }
+            }
+        };
+
+        let currentLang = localStorage.getItem('cookbook_lang') || 'ru';
+        let database = [];
+        let activeCategory = 'ALL';
+        
+        let favorites = JSON.parse(localStorage.getItem('cookbook_favorites') || '[]');
+        let currentModalRecipeId = null;
+
+        const recipeList = document.getElementById('recipeList');
+        const searchInput = document.getElementById('searchInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const recipeModal = document.getElementById('recipeModal');
+        const modalFavBtn = document.getElementById('modalFavBtn');
+
+        function t(key) {
+            return translations[currentLang][key] || key;
+        }
+
+        function getRecipeTitle(recipe) {
+            if (currentLang === 'en' && recipe.titleEn) return recipe.titleEn;
+            return recipe.title || recipe.name || '';
+        }
+
+        function getRecipeCanon(recipe) {
+            if (currentLang === 'en' && recipe.canonEn) return recipe.canonEn;
+            return recipe.canon || recipe.desc || '';
+        }
+
+        function getRecipeTime(recipe) {
+            if (!recipe.time) return '20 мин';
+            if (currentLang === 'en') {
+                return recipe.time
+                    .replace(/ч/g, 'h')
+                    .replace(/мин/g, 'min');
+            }
+            return recipe.time;
+        }
+
+        function getRecipeDifficulty(recipe) {
+            if (currentLang === 'en' && recipe.difficultyEn) return recipe.difficultyEn;
+            const diff = recipe.difficulty || 'Низкая';
+            return translations[currentLang].difficulties[diff] || diff;
+        }
+
+        function getRecipeIngredients(recipe) {
+            if (currentLang === 'en' && recipe.ingredientsEn && recipe.ingredientsEn.length > 0) {
+                return recipe.ingredientsEn;
+            }
+            return recipe.ingredients || [];
+        }
+
+        function getRecipeSteps(recipe) {
+            if (currentLang === 'en' && recipe.stepsEn && recipe.stepsEn.length > 0) {
+                return recipe.stepsEn;
+            }
+            return recipe.steps || [];
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'ru' ? 'en' : 'ru';
+            localStorage.setItem('cookbook_lang', currentLang);
+            updateStaticTexts();
+            renderCategoryFilters();
+            renderRecipes();
+            if (currentModalRecipeId) {
+                const recipe = database.find(r => (r.id || r.title || r.name) === currentModalRecipeId);
+                if (recipe) openModal(recipe);
+            }
+        }
+
+        function updateStaticTexts() {
+            document.getElementById('langLabel').innerText = currentLang.toUpperCase();
+            document.getElementById('headerSubtitle').innerText = t('subtitle');
+            document.getElementById('searchInput').placeholder = t('searchPlaceholder');
+            document.getElementById('modalTimeTitle').innerText = t('time');
+            document.getElementById('modalDiffTitle').innerText = t('difficulty');
+            document.getElementById('modalIngHeader').innerText = t('ingredients');
+            document.getElementById('modalStepsHeader').innerText = t('steps');
+            document.getElementById('randomBtnTitle').title = t('randomBtnTitle');
+        }
+
+        async function loadRecipes() {
+            try {
+                const res = await fetch('recipes.json');
+                database = await res.json();
+                updateStaticTexts();
+                renderCategoryFilters();
+                renderRecipes();
+            } catch (err) {
+                recipeList.innerHTML = `<div class="text-center py-12 text-amber-300/80 text-sm">${t('errorLoad')}</div>`;
+            }
+        }
+
+        function toggleFavorite(id, event) {
+            if (event) event.stopPropagation();
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(favId => favId !== id);
+            } else {
+                favorites.push(id);
+            }
+            localStorage.setItem('cookbook_favorites', JSON.stringify(favorites));
+            renderCategoryFilters();
+            renderRecipes();
+            if (currentModalRecipeId === id) updateModalFavBtn(id);
+        }
+
+        function renderCategoryFilters() {
+            const rawCategories = [...new Set(database.map(r => r.category).filter(Boolean))];
+            const categories = ['ALL', 'FAVORITES', ...rawCategories];
+            categoryFilter.innerHTML = categories.map(cat => {
+                const isAll = cat === 'ALL';
+                const isFav = cat === 'FAVORITES';
+                const isActive = activeCategory === cat;
+                
+                let label = isAll ? t('allCategories') : (isFav ? `❤️ ${t('favorites')} (${favorites.length})` : (translations[currentLang].categories[cat] || cat));
+                return `<button onclick="setCategory('${cat}')" class="px-3 py-1.5 rounded-lg transition border text-xs font-medium ${isActive ? 'bg-amber-600/35 text-amber-200 border-amber-500 font-bold' : 'bg-[#181310] text-amber-100/80 border-[#3d2f24] hover:border-amber-600/50'}">${label}</button>`;
+            }).join('');
+        }
+
+        function getFilteredRecipes() {
+            const rawQuery = searchInput.value.toLowerCase().trim();
+            const checkCategory = (r) => {
+                const rId = r.id || r.title || r.name;
+                return activeCategory === 'FAVORITES' ? favorites.includes(rId) : (activeCategory === 'ALL' || r.category === activeCategory);
+            };
+
+            if (!rawQuery) return database.filter(r => checkCategory(r));
+
+            return database.filter(r => {
+                const titleRu = r.title || r.name || '';
+                const titleEn = r.titleEn || '';
+                const ingRu = (r.ingredients || []).join(' ');
+                const ingEn = (r.ingredientsEn || []).join(' ');
+                const fullText = `${titleRu} ${titleEn} ${ingRu} ${ingEn}`.toLowerCase();
+                return checkCategory(r) && fullText.includes(rawQuery);
+            });
+        }
+
+        function renderRecipes() {
+            const items = getFilteredRecipes();
+            recipeList.innerHTML = '';
+            if (items.length === 0) {
+                recipeList.innerHTML = `<div class="text-center py-16 text-amber-300/70 text-sm">${t('noResults')}</div>`;
+                return;
+            }
+
+            items.forEach(recipe => {
+                const title = getRecipeTitle(recipe);
+                const recipeId = recipe.id || recipe.title || recipe.name;
+                const isFav = favorites.includes(recipeId);
+                const image = recipe.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500';
+                const time = getRecipeTime(recipe);
+                const difficulty = getRecipeDifficulty(recipe);
+
+                const card = document.createElement('div');
+                card.className = "parchment-card rounded-xl overflow-hidden cursor-pointer transition group shadow-md relative hover:border-amber-500/70";
+                card.onclick = () => openModal(recipe);
+                card.innerHTML = `
+                    <div class="h-36 w-full relative overflow-hidden bg-[#0d0a08]">
+                        <img src="${image}" class="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-95 transition duration-500" alt="${title}">
+                        <div class="absolute inset-0 bg-gradient-to-t from-[#16120f] via-transparent to-transparent"></div>
+                        <button onclick="toggleFavorite('${recipeId}', event)" class="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-[#14100d]/85 border border-[#4a3828] flex items-center justify-center ${isFav ? 'text-red-500' : 'text-amber-200/80 hover:text-white'} transition">
+                            <svg class="w-4 h-4" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                        </button>
+                    </div>
+                    <div class="p-3.5 space-y-1.5">
+                        <h3 class="font-bold text-amber-100 group-hover:text-amber-300 transition text-sm leading-snug">${title}</h3>
+                        <div class="flex justify-between text-xs text-amber-200/75 pt-0.5 font-medium">
+                            <span>⏱ ${time}</span>
+                            <span>⚠️ ${difficulty}</span>
+                        </div>
+                    </div>
+                `;
+                recipeList.appendChild(card);
+            });
+        }
+
+        function setCategory(cat) {
+            activeCategory = activeCategory === cat ? 'ALL' : cat;
+            renderCategoryFilters();
+            renderRecipes();
+        }
+
+        function updateModalFavBtn(recipeId) {
+            const isFav = favorites.includes(recipeId);
+            modalFavBtn.onclick = () => toggleFavorite(recipeId);
+            modalFavBtn.className = `w-9 h-9 rounded-full backdrop-blur-md border flex items-center justify-center transition cursor-pointer ${isFav ? 'bg-red-950/50 text-red-500 border-red-700/70' : 'bg-[#1b1511]/90 text-amber-200 border-[#4a3828] hover:text-white'}`;
+            modalFavBtn.querySelector('svg').setAttribute('fill', isFav ? 'currentColor' : 'none');
+        }
+
+        function openModal(recipe) {
+            const title = getRecipeTitle(recipe);
+            const recipeId = recipe.id || recipe.title || recipe.name;
+            currentModalRecipeId = recipeId;
+
+            document.getElementById('modalImage').src = recipe.image || 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500';
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalCanon').innerText = getRecipeCanon(recipe);
+            document.getElementById('modalTime').innerText = getRecipeTime(recipe);
+            document.getElementById('modalDifficulty').innerText = getRecipeDifficulty(recipe);
+
+            updateModalFavBtn(recipeId);
+
+            const ingredients = getRecipeIngredients(recipe);
+            document.getElementById('modalIngredients').innerHTML = ingredients.map(ing => {
+                return `
+                    <li onclick="this.classList.toggle('line-through'); this.classList.toggle('opacity-45')" 
+                        class="bg-[#1b1511] p-3 rounded-lg border border-[#3d2f24] cursor-pointer transition flex items-center justify-between text-amber-50">
+                        <span>${ing}</span><span class="text-amber-400 font-bold text-sm">✓</span>
+                    </li>
+                `;
+            }).join('');
+
+            const steps = getRecipeSteps(recipe);
+            document.getElementById('modalSteps').innerHTML = steps.map((step, idx) => {
+                return `
+                    <li class="flex gap-3 bg-[#1b1511] p-3.5 rounded-lg border border-[#3d2f24]">
+                        <span class="font-bold text-amber-400 text-sm">${idx + 1}.</span>
+                        <span class="text-amber-50 leading-relaxed">${step}</span>
+                    </li>
+                `;
+            }).join('');
+
+            recipeModal.classList.remove('hidden');
+            recipeModal.querySelector('.overflow-y-auto').scrollTop = 0;
+        }
+
+        function closeModal() {
+            recipeModal.classList.add('hidden');
+            currentModalRecipeId = null;
+        }
+
+        function openRandomRecipe() {
+            if (database.length === 0) return;
+            const randomIndex = Math.floor(Math.random() * database.length);
+            openModal(database[randomIndex]);
+        }
+
+        searchInput.addEventListener('input', renderRecipes);
+
+        loadRecipes();
+    </script>
+</body>
+</html>
